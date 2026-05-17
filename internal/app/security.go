@@ -295,6 +295,9 @@ func (a *App) clearSessionCookie(w http.ResponseWriter, r *http.Request) {
 }
 
 func sameOriginRequest(r *http.Request) bool {
+	allowedSchemes := requestAllowedSchemes(r)
+	allowedHosts := requestAllowedHosts(r)
+
 	for _, raw := range []string{r.Header.Get("Origin"), r.Header.Get("Referer")} {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {
@@ -305,12 +308,105 @@ func sameOriginRequest(r *http.Request) bool {
 		if err != nil {
 			return false
 		}
-		if !strings.EqualFold(parsed.Host, r.Host) {
+		if !schemeMatchesAny(parsed.Scheme, allowedSchemes) {
+			return false
+		}
+		if !hostMatchesAny(parsed.Host, parsed.Scheme, allowedHosts) {
 			return false
 		}
 		return true
 	}
 	return true
+}
+
+func requestAllowedSchemes(r *http.Request) []string {
+	values := []string{requestScheme(r), r.Header.Get("X-Forwarded-Proto"), r.Header.Get("X-Forwarded-Scheme")}
+	return normalizedHeaderValues(values...)
+}
+
+func requestAllowedHosts(r *http.Request) []string {
+	values := []string{r.Host, r.Header.Get("X-Forwarded-Host"), r.Header.Get("X-Original-Host")}
+	return normalizedHeaderValues(values...)
+}
+
+func normalizedHeaderValues(values ...string) []string {
+	result := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, raw := range values {
+		for _, part := range strings.Split(raw, ",") {
+			value := strings.ToLower(strings.TrimSpace(part))
+			if value == "" {
+				continue
+			}
+			if _, exists := seen[value]; exists {
+				continue
+			}
+			seen[value] = struct{}{}
+			result = append(result, value)
+		}
+	}
+	return result
+}
+
+func requestScheme(r *http.Request) string {
+	if r.TLS != nil {
+		return "https"
+	}
+	return "http"
+}
+
+func schemeMatchesAny(actual string, allowed []string) bool {
+	actual = strings.ToLower(strings.TrimSpace(actual))
+	if actual == "" {
+		return false
+	}
+	for _, candidate := range allowed {
+		if actual == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func hostMatchesAny(actual string, scheme string, allowed []string) bool {
+	actualHost, actualPort, ok := normalizeHostPort(actual, scheme)
+	if !ok {
+		return false
+	}
+
+	for _, candidate := range allowed {
+		candidateHost, candidatePort, candidateOK := normalizeHostPort(candidate, scheme)
+		if !candidateOK {
+			continue
+		}
+		if actualHost == candidateHost && actualPort == candidatePort {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeHostPort(value string, scheme string) (string, string, bool) {
+	parsed, err := url.Parse("//" + strings.TrimSpace(value))
+	if err != nil || parsed.Host == "" {
+		return "", "", false
+	}
+
+	host := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
+	if host == "" {
+		return "", "", false
+	}
+
+	port := parsed.Port()
+	if port == "" {
+		switch strings.ToLower(strings.TrimSpace(scheme)) {
+		case "https":
+			port = "443"
+		case "http":
+			port = "80"
+		}
+	}
+	return host, port, true
 }
 
 func isLoopbackClient(value string) bool {

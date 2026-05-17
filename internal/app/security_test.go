@@ -54,3 +54,27 @@ func TestSameOriginRequest(t *testing.T) {
 		t.Fatal("foreign origin request should fail")
 	}
 }
+
+func TestSameOriginRequestBehindReverseProxy(t *testing.T) {
+	request := httptest.NewRequest("POST", "http://127.0.0.1:60162/templates/remove", nil)
+	request.Host = "127.0.0.1:60162"
+	request.Header.Set("Origin", "https://mail.example.com")
+	request.Header.Set("X-Forwarded-Host", "mail.example.com")
+	request.Header.Set("X-Forwarded-Proto", "https")
+
+	if !sameOriginRequest(request) {
+		t.Fatal("request forwarded by a reverse proxy should pass same-origin validation")
+	}
+}
+
+func TestSameOriginRequestDefaultHttpsPort(t *testing.T) {
+	request := httptest.NewRequest("POST", "http://127.0.0.1:60162/templates/remove", nil)
+	request.Host = "127.0.0.1:60162"
+	request.Header.Set("Referer", "https://mail.example.com/dashboard")
+	request.Header.Set("X-Forwarded-Host", "mail.example.com:443")
+	request.Header.Set("X-Forwarded-Proto", "https")
+
+	if !sameOriginRequest(request) {
+		t.Fatal("https referer without explicit port should match forwarded host with 443")
+	}
+}
