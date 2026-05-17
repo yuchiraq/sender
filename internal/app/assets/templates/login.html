@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}} | Сервис рассылки</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-page">
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <main class="login-shell">
+    <section class="login-card studio-card">
+      <div class="topline">Закрытый доступ</div>
+      <div class="brand-row">
+        <div class="brand-mark">SS</div>
+        <div>
+          <h1>Вход в пульт рассылки</h1>
+          <p class="muted-copy">Только для работы за пультом: очередь писем, база текстов и отправка по ритму без хаоса, дублей и слабых паролей.</p>
+        </div>
+      </div>
+
+      <div class="wave-band">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+
+      {{if .Error}}
+      <div class="flash flash-error">
+        <strong>Доступ закрыт.</strong>
+        <span>{{.Error}}</span>
+        {{if .RetryAfter}}<span>Новая попытка через {{.RetryAfter}}.</span>{{end}}
+      </div>
+      {{end}}
+
+      <form method="post" action="/login" class="stack-form">
+        <label>
+          <span>Логин</span>
+          <input type="text" name="username" value="{{.Username}}" autocomplete="username" required>
+        </label>
+
+        <label>
+          <span>Пароль</span>
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+
+        <button type="submit" class="button button-primary button-block">Войти в пульт</button>
+      </form>
+
+      <div class="security-panel">
+        <div>
+          <strong>Спокойная смена без лишнего шума</strong>
+          <p>Подписанные сессии, CSRF-защита, ограничение попыток входа и локальный режим по умолчанию держат панель в порядке.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

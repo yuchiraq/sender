@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}} | Сервис рассылки</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dashboard-page">
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+  <div class="mesh-layer"></div>
+
+  <main class="page-shell">
+    <header class="hero-card studio-card">
+      <div class="hero-main">
+        <div class="topline">Ночная смена</div>
+        <div class="brand-row">
+          <div class="brand-mark">SS</div>
+          <div>
+            <h1>Пульт рассылки</h1>
+            <p class="muted-copy">Темная панель в музыкальном стиле: очередь держит ритм, тексты лежат под рукой, события пишутся в журнал, а отправка идет без ручной суеты.</p>
+          </div>
+        </div>
+
+        <div class="hero-badges">
+          <span class="metric-chip">Доступ: {{.Runtime.AccessMode}}</span>
+          <span class="metric-chip">Пароль: {{.Runtime.PasswordMode}}</span>
+          <span class="metric-chip">Почта: {{.Runtime.SMTPMode}}</span>
+          <span class="metric-chip">Интервал: {{.Runtime.IntervalLabel}}</span>
+        </div>
+      </div>
+
+      <div class="hero-actions">
+        <div class="hero-user">Вы вошли как {{.Username}}</div>
+        <form method="post" action="/send-now">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <button type="submit" class="button button-primary">Отправить сейчас</button>
+        </form>
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <button type="submit" class="button button-secondary">Выйти</button>
+        </form>
+      </div>
+    </header>
+
+    {{if .Flash.Message}}
+    <section class="flash {{statusClass .Flash.Type}}">
+      <span>{{.Flash.Message}}</span>
+    </section>
+    {{end}}
+
+    {{if .Warnings}}
+    <section class="warning-stack">
+      {{range .Warnings}}
+      <article class="warning-card studio-card">
+        <strong>Внимание</strong>
+        <span>{{.}}</span>
+      </article>
+      {{end}}
+    </section>
+    {{end}}
+
+    <section class="stats-grid">
+      <article class="stat-card studio-card">
+        <span>В очереди</span>
+        <strong>{{.Stats.PendingCount}}</strong>
+        <small>адресов ждут свою отправку</small>
+      </article>
+      <article class="stat-card studio-card">
+        <span>В архиве</span>
+        <strong>{{.Stats.ProcessedCount}}</strong>
+        <small>уже успешно обработаны</small>
+      </article>
+      <article class="stat-card studio-card">
+        <span>Текстов</span>
+        <strong>{{.Stats.TemplateCount}}</strong>
+        <small>вариантов в банке сообщений</small>
+      </article>
+      <article class="stat-card studio-card">
+        <span>Событий</span>
+        <strong>{{.Stats.LogCount}}</strong>
+        <small>записано в журнале</small>
+      </article>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel-card studio-card">
+        <div class="card-head">
+          <div>
+            <h2>Добавить адреса</h2>
+            <p class="card-copy">Вставьте список адресов. Сервис сам разложит их в очередь и не пропустит дубли.</p>
+          </div>
+          <span class="pill">запятая, пробел, новая строка</span>
+        </div>
+        <form method="post" action="/emails" class="stack-form">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <label>
+            <span>Список адресов</span>
+            <textarea name="emails" rows="7" placeholder="one@example.com&#10;two@example.com" required></textarea>
+          </label>
+          <button type="submit" class="button button-primary">Загрузить в очередь</button>
+        </form>
+      </article>
+
+      <article class="panel-card studio-card">
+        <div class="card-head">
+          <div>
+            <h2>Добавить текст</h2>
+            <p class="card-copy">Добавьте новый вариант письма в банк текстов. При отправке сервис берет случайный текст.</p>
+          </div>
+          <span class="pill">случайный выбор</span>
+        </div>
+        <form method="post" action="/templates" class="stack-form">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <label>
+            <span>Текст письма</span>
+            <textarea name="template_text" rows="7" placeholder="Новый вариант письма для базы сообщений..." required></textarea>
+          </label>
+          <button type="submit" class="button button-secondary">Сохранить текст</button>
+        </form>
+      </article>
+
+      <article class="panel-card studio-card">
+        <div class="card-head">
+          <div>
+            <h2>Состояние системы</h2>
+            <p class="card-copy">Оперативный срез по защите, почтовому режиму и набору вложений.</p>
+          </div>
+          <span class="pill {{if .Runtime.SMTPReady}}status-success{{else}}status-warning{{end}}">
+            {{if .Runtime.SMTPReady}}Почта готова{{else}}Почта не настроена{{end}}
+          </span>
+        </div>
+        <dl class="info-list">
+          <div>
+            <dt>Адрес сервиса</dt>
+            <dd>{{.Runtime.ListenAddress}}</dd>
+          </div>
+          <div>
+            <dt>Режим доступа</dt>
+            <dd>{{.Runtime.AccessMode}}</dd>
+          </div>
+          <div>
+            <dt>Хранение пароля</dt>
+            <dd>{{.Runtime.PasswordMode}}</dd>
+          </div>
+          <div>
+            <dt>Вложения</dt>
+            <dd>{{.Runtime.AttachmentSet}}</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="panel-card studio-card">
+        <div class="card-head">
+          <div>
+            <h2>Файлы для отправки</h2>
+            <p class="card-copy">Эти файлы прикладываются к письму и уходят вместе с очередной отправкой.</p>
+          </div>
+          <span class="pill">{{len .Attachments}} файлов</span>
+        </div>
+        {{if .Attachments}}
+        <div class="attachment-list">
+          {{range .Attachments}}
+          <div class="attachment-item">
+            <div>
+              <strong>{{.Name}}</strong>
+              <span>{{.Path}}</span>
+            </div>
+            <em>{{.Size}}</em>
+          </div>
+          {{end}}
+        </div>
+        {{else}}
+        <p class="empty-state">Файлы не найдены. Положите материалы в `attachments/` или перечислите их вручную в `config.json`.</p>
+        {{end}}
+      </article>
+
+      <article class="panel-card studio-card">
+        <div class="card-head">
+          <div>
+            <h2>Смена пароля</h2>
+            <p class="card-copy">Новый пароль сохраняется в `config.json` в виде `bcrypt`-хэша. Текущий пароль нужен для подтверждения операции.</p>
+          </div>
+          <span class="pill">встроенная настройка</span>
+        </div>
+        <form method="post" action="/settings/password" class="stack-form">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <label>
+            <span>Текущий пароль</span>
+            <input type="password" name="current_password" autocomplete="current-password" required>
+          </label>
+          <label>
+            <span>Новый пароль</span>
+            <input type="password" name="new_password" autocomplete="new-password" minlength="8" required>
+          </label>
+          <label>
+            <span>Повторите новый пароль</span>
+            <input type="password" name="confirm_password" autocomplete="new-password" minlength="8" required>
+          </label>
+          <button type="submit" class="button button-secondary">Обновить пароль</button>
+        </form>
+      </article>
+    </section>
+
+    <section class="wide-grid">
+      <article class="panel-card studio-card">
+        <div class="card-head">
+          <div>
+            <h2>Очередь отправки</h2>
+            <p class="card-copy">Здесь находятся адреса, которые еще ждут свою отправку.</p>
+          </div>
+          <span class="pill">{{len .Pending}} адресов</span>
+        </div>
+        {{if .Pending}}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Адрес</th>
+                <th>Добавлен</th>
+                <th>Действие</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .Pending}}
+              <tr>
+                <td>{{.Address}}</td>
+                <td>{{formatTime .AddedAt}}</td>
+                <td class="action-cell">
+                  <form method="post" action="/emails/remove">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <input type="hidden" name="address" value="{{.Address}}">
+                    <button type="submit" class="button button-ghost">Убрать</button>
+                  </form>
+                </td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+        {{else}}
+        <p class="empty-state">Очередь пока пуста. Добавьте адреса, и сервис продолжит работу в своем ритме.</p>
+        {{end}}
+      </article>
+
+      <article class="panel-card studio-card">
+        <div class="card-head">
+          <div>
+            <h2>Архив отправок</h2>
+            <p class="card-copy">Сюда попадают адреса после успешной отправки. При необходимости можно вернуть их обратно.</p>
+          </div>
+          <span class="pill">{{len .Processed}} адресов</span>
+        </div>
+        {{if .Processed}}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Адрес</th>
+                <th>Отправлено</th>
+                <th>Тема</th>
+                <th>Действие</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .Processed}}
+              <tr>
+                <td>{{.Address}}</td>
+                <td>{{formatTime .ProcessedAt}}</td>
+                <td>{{truncate .Subject 56}}</td>
+                <td class="action-cell">
+                  <form method="post" action="/processed/requeue">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <input type="hidden" name="address" value="{{.Address}}">
+                    <button type="submit" class="button button-ghost">Вернуть</button>
+                  </form>
+                </td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+        {{else}}
+        <p class="empty-state">После первой успешной отправки архив начнет заполняться автоматически.</p>
+        {{end}}
+      </article>
+    </section>
+
+    <section class="wide-grid">
+      <article class="panel-card studio-card">
+        <div class="card-head">
+          <div>
+            <h2>Банк текстов</h2>
+            <p class="card-copy">База сообщений для случайного выбора, чтобы письма не выглядели одинаково.</p>
+          </div>
+          <span class="pill">{{len .Templates}} вариантов</span>
+        </div>
+        {{if .Templates}}
+        <div class="template-stack">
+          {{range .Templates}}
+          <div class="template-item">
+            <div class="template-body">{{.Text}}</div>
+            <div class="template-meta">
+              <span>Добавлен: {{formatTime .AddedAt}}</span>
+              <form method="post" action="/templates/remove">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <input type="hidden" name="template_id" value="{{.ID}}">
+                <button type="submit" class="button button-ghost">Удалить</button>
+              </form>
+            </div>
+          </div>
+          {{end}}
+        </div>
+        {{else}}
+        <p class="empty-state">Банк текстов пуст. Добавьте хотя бы один шаблон, иначе отправлять будет нечего.</p>
+        {{end}}
+      </article>
+
+      <article class="panel-card studio-card">
+        <div class="card-head">
+          <div>
+            <h2>Журнал событий</h2>
+            <p class="card-copy">Последние события по отправкам, ошибкам и ручным действиям.</p>
+          </div>
+          <span class="pill">{{len .Logs}} записей</span>
+        </div>
+        {{if .Logs}}
+        <div class="log-stack">
+          {{range .Logs}}
+          <div class="log-item">
+            <span class="status-dot {{statusClass .Status}}"></span>
+            <div class="log-copy">
+              <strong>{{if .Email}}{{.Email}}{{else}}Системное событие{{end}}</strong>
+              <p>{{.Details}}</p>
+            </div>
+            <time>{{formatTime .At}}</time>
+          </div>
+          {{end}}
+        </div>
+        {{else}}
+        <p class="empty-state">Журнал начнет заполняться после первых действий, ручного запуска или фоновой отправки.</p>
+        {{end}}
+      </article>
+    </section>
+  </main>
+</body>
+</html>

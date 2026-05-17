@@ -1,0 +1,48 @@
+{
+  "server": {
+    "address": "127.0.0.1:60162",
+    "allow_remote": false,
+    "read_timeout_seconds": 10,
+    "read_header_timeout_seconds": 5,
+    "write_timeout_seconds": 20,
+    "idle_timeout_seconds": 60
+  },
+  "auth": {
+    "username": "admin",
+    "password": "",
+    "password_env": "",
+    "password_hash": "$2a$10$752KesCo.TmOLZWapEXUSOG6addXivwgVRss6rWrHG6tYK3nNPJHO",
+    "password_hash_env": "",
+    "session_secret": "5b96b2d44d95416f8bcda5b4c6dca6b6b3f7165f1e8f1c59",
+    "session_hours": 12,
+    "max_login_attempts": 5,
+    "login_window_minutes": 15,
+    "login_block_minutes": 15
+  },
+  "smtp": {
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "username": "",
+    "password": "",
+    "password_env": "SENDER_GMAIL_APP_PASSWORD",
+    "from_email": "",
+    "from_name": "Почтовый сервис",
+    "security": "starttls",
+    "insecure_skip_verify": false
+  },
+  "mail": {
+    "subject": "Новый пакет материалов",
+    "attachment_dir": "attachments",
+    "attachment_paths": []
+  },
+  "storage": {
+    "pending_emails_path": "data/pending_emails.json",
+    "processed_emails_path": "data/processed_emails.json",
+    "templates_path": "data/message_templates.json",
+    "send_log_path": "data/send_log.json"
+  },
+  "scheduler": {
+    "interval_minutes": 30,
+    "run_immediately": false
+  }
+}
