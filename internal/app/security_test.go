@@ -1,8 +1,12 @@
 package app
 
 import (
+	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestHashPasswordAndVerify(t *testing.T) {
@@ -41,40 +45,81 @@ func TestIsLoopbackClient(t *testing.T) {
 	}
 }
 
-func TestSameOriginRequest(t *testing.T) {
-	request := httptest.NewRequest("POST", "http://127.0.0.1:60162/send-now", nil)
-	request.Host = "127.0.0.1:60162"
-	request.Header.Set("Origin", "http://127.0.0.1:60162")
-	if !sameOriginRequest(request) {
-		t.Fatal("same origin request should pass")
+func TestWithCSRFAcceptsValidToken(t *testing.T) {
+	app := &App{
+		cfg: Config{
+			Auth: AuthConfig{
+				SessionSecret: "01234567890123456789012345678901",
+			},
+		},
 	}
 
-	request.Header.Set("Origin", "http://evil.example")
-	if sameOriginRequest(request) {
-		t.Fatal("foreign origin request should fail")
+	cookie, session, err := newSessionCookie(app.cfg.Auth.SessionSecret, "admin", time.Hour)
+	if err != nil {
+		t.Fatalf("newSessionCookie returned error: %v", err)
+	}
+
+	form := url.Values{}
+	form.Set("csrf_token", session.CSRFToken)
+
+	request := httptest.NewRequest(http.MethodPost, "http://example.com/templates/remove", strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("Origin", "https://totally-different-host.example")
+	request.AddCookie(cookie)
+
+	recorder := httptest.NewRecorder()
+	called := false
+
+	handler := app.withCSRF(func(w http.ResponseWriter, r *http.Request, s *Session) {
+		called = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	handler.ServeHTTP(recorder, request)
+
+	if !called {
+		t.Fatal("expected handler to be called for a valid csrf token")
+	}
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, recorder.Code)
 	}
 }
 
-func TestSameOriginRequestBehindReverseProxy(t *testing.T) {
-	request := httptest.NewRequest("POST", "http://127.0.0.1:60162/templates/remove", nil)
-	request.Host = "127.0.0.1:60162"
-	request.Header.Set("Origin", "https://mail.example.com")
-	request.Header.Set("X-Forwarded-Host", "mail.example.com")
-	request.Header.Set("X-Forwarded-Proto", "https")
-
-	if !sameOriginRequest(request) {
-		t.Fatal("request forwarded by a reverse proxy should pass same-origin validation")
+func TestWithCSRFRejectsInvalidToken(t *testing.T) {
+	app := &App{
+		cfg: Config{
+			Auth: AuthConfig{
+				SessionSecret: "01234567890123456789012345678901",
+			},
+		},
 	}
-}
 
-func TestSameOriginRequestDefaultHttpsPort(t *testing.T) {
-	request := httptest.NewRequest("POST", "http://127.0.0.1:60162/templates/remove", nil)
-	request.Host = "127.0.0.1:60162"
-	request.Header.Set("Referer", "https://mail.example.com/dashboard")
-	request.Header.Set("X-Forwarded-Host", "mail.example.com:443")
-	request.Header.Set("X-Forwarded-Proto", "https")
+	cookie, _, err := newSessionCookie(app.cfg.Auth.SessionSecret, "admin", time.Hour)
+	if err != nil {
+		t.Fatalf("newSessionCookie returned error: %v", err)
+	}
 
-	if !sameOriginRequest(request) {
-		t.Fatal("https referer without explicit port should match forwarded host with 443")
+	form := url.Values{}
+	form.Set("csrf_token", "wrong-token")
+
+	request := httptest.NewRequest(http.MethodPost, "http://example.com/templates/remove", strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.AddCookie(cookie)
+
+	recorder := httptest.NewRecorder()
+	called := false
+
+	handler := app.withCSRF(func(w http.ResponseWriter, r *http.Request, s *Session) {
+		called = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	handler.ServeHTTP(recorder, request)
+
+	if called {
+		t.Fatal("handler should not be called for an invalid csrf token")
+	}
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, recorder.Code)
 	}
 }
